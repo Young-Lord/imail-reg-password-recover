@@ -44,7 +44,17 @@ func parse_config_line(line string) (string, string) {
 	return key, value
 }
 
+func exitOnError(err string) {
+	fmt.Println(err)
+	os.Exit(1)
+}
+
 func main() {
+	if len(os.Args) == 1 {
+		exitOnError("Usage: imail-reg-password-recover <config file> [config file] ...")
+	}
+
+	const utf_16_detect = "M\x00a\x00i\x00l\x00A\x00d\x00d\x00r"
 	for index, filename := range os.Args {
 		if index == 0 {
 			continue
@@ -53,7 +63,7 @@ func main() {
 		// open file
 		file, err := os.Open(filename)
 		if err != nil {
-			panic(err)
+			exitOnError("Error opening file: " + filename)
 		}
 		var username, password string
 		accounts := make(map[string]string)
@@ -66,7 +76,8 @@ func main() {
 			line, err := r.ReadString('\n')
 			line = strings.TrimSpace(line)
 			if err != nil && err != io.EOF {
-				panic(err)
+				fmt.Println(err)
+				exitOnError("Error reading file: " + filename)
 			}
 			if err == io.EOF {
 				break
@@ -85,6 +96,9 @@ func main() {
 				password = value
 				accounts[username] = password_decrypt(username, password)
 				username, password = "", ""
+			}
+			if strings.Contains(line, utf_16_detect) {
+				exitOnError("UTF-16 encoding detected in file \"" + filename + "\", please convert to UTF-8 first.")
 			}
 		}
 		file.Close()
